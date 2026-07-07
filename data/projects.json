@@ -1,0 +1,40 @@
+[
+  {
+    "name": "KinectSchoolScanner",
+    "slug": "kinect-school-scanner",
+    "organization": "Bluebird-Studio",
+    "status": "Active / Research",
+    "summary": "WPF Kinect v1 depth/RGB room scanner that generates colored point clouds and exports ASCII PLY files for Blender workflows.",
+    "repo": "https://github.com/Bluebird-Studio/KinectSchoolScanner",
+    "live": "",
+    "tags": [
+      "WPF",
+      ".NET Framework 4.8",
+      "Kinect SDK v1.8",
+      "Blender",
+      "C#"
+    ],
+    "related": [
+      "DigitalChalkLab",
+      "Machine-Learning-Compatible-Game-Engine"
+    ]
+  },
+  {
+    "name": "fiicode-2026-overcoded",
+    "slug": "fiicode-2026-overcoded",
+    "organization": "Bluebird-Studio",
+    "status": "Active",
+    "summary": "Local co-op game prototype inspired by Overcooked where players coordinate tasks to survive computer science semesters.",
+    "repo": "https://github.com/Bluebird-Studio/fiicode-2026-overcoded",
+    "live": "",
+    "tags": [
+      "C++17",
+      "raylib",
+      "CMake",
+      "Game Jam"
+    ],
+    "related": [
+      "Machine-Learning-Compatible-Game-Engine"
+    ]
+  }
+]

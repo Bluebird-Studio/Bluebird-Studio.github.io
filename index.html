@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluebird Studio - GitHub Pages</title>
+    <meta name="description" content="Creative studio for games, interactive worlds, game-jam prototypes, C++/raylib and Unity gameplay experiments, Kinect/AR scanning, and creative technologies.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="https://dragosandreibobu.github.io" class="nav-brand-back">
+                &larr; <span class="brand-text">Personal Hub</span>
+            </a>
+            <div class="nav-org-title">Bluebird Studio</div>
+            <nav class="nav-links">
+                <a href="#mission">Mission</a>
+                <a href="#connections">Ecosystem</a>
+                <a href="#projects">Projects</a>
+                <a href="#docs">Documentation</a>
+                <a href="https://github.com/Bluebird-Studio" target="_blank" class="nav-btn">Organization GitHub</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Hero -->
+        <section id="mission" class="hero-section">
+            <div class="hero-glow"></div>
+            <span class="badge">Organization Workspace</span>
+            <h1 class="hero-title">Bluebird Studio</h1>
+            <p class="hero-bio">Creative studio for games, interactive worlds, game-jam prototypes, C++/raylib and Unity gameplay experiments, Kinect/AR scanning, and creative technologies.</p>
+        </section>
+
+        <!-- Connection -->
+        <section id="connections" class="info-card-section">
+            <div class="info-card">
+                <h3>Ecosystem Integration</h3>
+                <p>Bridges visual graphics and hardware scanning with teaching systems (DigitalChalkLab), game engines (MLCGE), and AI frameworks (Hyperspace-Intelligence).</p>
+                <div class="related-orgs">
+                    <strong>Related organizations:</strong>
+                    <div class="related-links">
+                        <a href="https://DigitalChalkLab.github.io" class="related-link">DigitalChalkLab</a> <a href="https://Machine-Learning-Compatible-Game-Engine.github.io" class="related-link">Machine-Learning-Compatible-Game-Engine</a> <a href="https://Hyperspace-Intelligence.github.io" class="related-link">Hyperspace-Intelligence</a> 
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Projects grid -->
+        <section id="projects" class="section">
+            <div class="section-header">
+                <h2 class="section-title">Projects Directory</h2>
+                <p class="section-desc">Standard catalog of active development, research modules, and pedagogical resources.</p>
+                <div class="filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="active">Active</button>
+                    <button class="filter-btn" data-filter="research">Research</button>
+                    <button class="filter-btn" data-filter="teaching">Teaching</button>
+                    <button class="filter-btn" data-filter="archived">Archived</button>
+                </div>
+            </div>
+            <div class="projects-grid" id="projects-container">
+                <!-- Dynamically populated -->
+            </div>
+        </section>
+
+        <!-- Docs standard -->
+        <section id="docs" class="section">
+            <div class="section-header">
+                <h2 class="section-title">Documentation & Standards</h2>
+                <p class="section-desc">Unified engineering standards and project architecture specifications.</p>
+            </div>
+            <div class="docs-grid">
+                <a href="docs/overview.md" class="doc-card">
+                    <h4>Overview & Context</h4>
+                    <p>Comprehensive description of this workspace's mission and targets.</p>
+                </a>
+                <a href="docs/architecture.md" class="doc-card">
+                    <h4>Architecture & Topology</h4>
+                    <p>Internal software architecture and design pattern guidelines.</p>
+                </a>
+                <a href="docs/roadmap.md" class="doc-card">
+                    <h4>Ecosystem Roadmap</h4>
+                    <p>Milestones, feature integrations, and future project phases.</p>
+                </a>
+                <a href="docs/projects.md" class="doc-card">
+                    <h4>Project Catalog Specification</h4>
+                    <p>Detailed technical inventory of code repositories.</p>
+                </a>
+                <a href="docs/documentation-standard.md" class="doc-card">
+                    <h4>Engineering Standards</h4>
+                    <p>Source directory structures, naming schemes, and git flow rules.</p>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <p>Part of the Dragoș-Andrei Bobu project ecosystem &bull; <a href="https://dragosandreibobu.github.io">https://dragosandreibobu.github.io</a></p>
+            <p><a href="https://github.com/Bluebird-Studio" target="_blank">GitHub Organization</a></p>
+        </div>
+    </footer>
+
+    <script>
+        const projects = [
+  {
+    "name": "KinectSchoolScanner",
+    "slug": "kinect-school-scanner",
+    "organization": "Bluebird-Studio",
+    "status": "Active / Research",
+    "summary": "WPF Kinect v1 depth/RGB room scanner that generates colored point clouds and exports ASCII PLY files for Blender workflows.",
+    "repo": "https://github.com/Bluebird-Studio/KinectSchoolScanner",
+    "live": "",
+    "tags": [
+      "WPF",
+      ".NET Framework 4.8",
+      "Kinect SDK v1.8",
+      "Blender",
+      "C#"
+    ],
+    "related": [
+      "DigitalChalkLab",
+      "Machine-Learning-Compatible-Game-Engine"
+    ]
+  },
+  {
+    "name": "fiicode-2026-overcoded",
+    "slug": "fiicode-2026-overcoded",
+    "organization": "Bluebird-Studio",
+    "status": "Active",
+    "summary": "Local co-op game prototype inspired by Overcooked where players coordinate tasks to survive computer science semesters.",
+    "repo": "https://github.com/Bluebird-Studio/fiicode-2026-overcoded",
+    "live": "",
+    "tags": [
+      "C++17",
+      "raylib",
+      "CMake",
+      "Game Jam"
+    ],
+    "related": [
+      "Machine-Learning-Compatible-Game-Engine"
+    ]
+  }
+];
+        const container = document.getElementById('projects-container');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+
+        function renderProjects(filter = 'all') {
+            container.innerHTML = '';
+            projects.forEach(p => {
+                const statusLower = p.status.toLowerCase();
+                let shouldShow = false;
+
+                if (filter === 'all') {
+                    shouldShow = true;
+                } else if (filter === 'active' && statusLower.includes('active')) {
+                    shouldShow = true;
+                } else if (filter === 'research' && statusLower.includes('research')) {
+                    shouldShow = true;
+                } else if (filter === 'teaching' && statusLower.includes('teaching')) {
+                    shouldShow = true;
+                } else if (filter === 'archived' && statusLower.includes('archived')) {
+                    shouldShow = true;
+                }
+
+                if (!shouldShow) return;
+
+                const card = document.createElement('div');
+                card.className = 'project-card fade-in';
+                
+                const badges = p.tags.map(t => `<span class="tag">${t}</span>`).join('');
+                const relatedLinks = p.related ? p.related.map(r => `<span class="related-org-tag">${r}</span>`).join(' ') : '';
+                
+                card.innerHTML = `
+                    <div class="project-card-header">
+                        <span class="project-status">${p.status}</span>
+                    </div>
+                    <h3>${p.name}</h3>
+                    <p>${p.summary}</p>
+                    <div class="project-tags">${badges}</div>
+                    ${relatedLinks ? `<div class="project-related-orgs"><strong>Related Orgs:</strong> ${relatedLinks}</div>` : ''}
+                    <div class="project-links">
+                        <a href="${p.repo}" target="_blank" class="link-btn">Code Repository</a>
+                        ${p.live ? `<a href="${p.live}" target="_blank" class="link-btn primary">Live Demo</a>` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderProjects(btn.dataset.filter);
+            });
+        });
+
+        renderProjects();
+    </script>
+</body>
+</html>
