@@ -1,4 +1,5 @@
-import { CITY, BLOCK, ROAD } from './world-sim.mjs';
+import { CITY, BLOCK, ROAD, makeVehicle, stepVehicle, createTraffic, stepTraffic, createPolice, stepPolice, collidePlayerWithActors, createPedestrians, stepPedestrians } from './world-sim.mjs';
+import { drawCityDetails, drawPedestrians, drawPoliceCar } from './world-art.mjs';
 (() => {
 'use strict';
 const canvas = document.getElementById('canvas');
@@ -11,17 +12,14 @@ const startEl = document.getElementById('start');
 let w = 0, h = 0, dpr = 1, last = performance.now(), playing = false;
 let cash = 0, deliveries = 0, policeHeat = 0, stage = 'pickup';
 const keys = new Set();
-const car = { x: 500, y: 500, angle: -Math.PI / 2, speed: 0 };
+const car = makeVehicle();
 const pickups = [[750,500],[1000,1000],[1750,1250],[500,1750],[2000,2000],[1250,750],[750,2000]];
 const drops = [[1500,500],[500,1250],[750,1750],[2000,750],[1000,2000],[1750,1500],[250,250]];
 let marker = pickups[0];
-const traffic = [];
-for (let i = 0; i < 24; i++) {
-  const row = 1 + (i * 7 % 9);
-  const col = 1 + (i * 11 % 9);
-  const horizontal = i % 2 === 0;
-  traffic.push({ x: col * BLOCK, y: row * BLOCK, dx: horizontal ? (i % 4 === 0 ? 1 : -1) : 0, dy: !horizontal ? (i % 3 === 0 ? 1 : -1) : 0, speed: 60 + i % 5 * 14, tint: ['#f6be70','#b16bba','#82caca','#80b66f'][i % 4] });
-}
+const traffic = createTraffic(28);
+const pedestrians = createPedestrians(48);
+const police = [];
+let worldTime = 0, impactFlash = 0, noticeTimeout = 0;
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
   w = window.innerWidth;
@@ -32,11 +30,6 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
-function isRoad(x, y, margin = 0) {
-  const dx = Math.abs(((x + BLOCK / 2) % BLOCK + BLOCK) % BLOCK - BLOCK / 2);
-  const dy = Math.abs(((y + BLOCK / 2) % BLOCK + BLOCK) % BLOCK - BLOCK / 2);
-  return dx < ROAD / 2 - margin || dy < ROAD / 2 - margin;
-}
 const seed = (x, y) => {
   const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return n - Math.floor(n);
