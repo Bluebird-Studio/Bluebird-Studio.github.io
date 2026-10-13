@@ -1,4 +1,4 @@
-import { CITY, BLOCK, ROAD, makeVehicle, stepVehicle, createTraffic, stepTraffic, createPolice, stepPolice, collidePlayerWithActors, createPedestrians, stepPedestrians } from './world-sim.mjs';
+import { isRoad, CITY, BLOCK, ROAD, makeVehicle, stepVehicle, createTraffic, stepTraffic, createPolice, stepPolice, collidePlayerWithActors, createPedestrians, stepPedestrians } from './world-sim.mjs';
 import { drawCityDetails, drawPedestrians, drawPoliceCar } from './world-art.mjs';
 (() => {
 'use strict';
