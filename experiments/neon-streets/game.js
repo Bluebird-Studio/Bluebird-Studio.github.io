@@ -161,7 +161,7 @@ function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(.05, Math.max(0, (now - last) / 1000));
   last = now;
-  if (playing) {
+  if (playing && !paused) {
     const throttle = Number(keys.has('ArrowUp') || keys.has('KeyW')) - Number(keys.has('ArrowDown') || keys.has('KeyS'));
     const steer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
     car.speed += throttle * 260 * dt;
