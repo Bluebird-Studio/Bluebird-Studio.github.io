@@ -37,4 +37,9 @@ test('game module is loaded and actually uses world physics', () => {
   assert.match(js,/stepVehicle\(/);
   assert.match(js,/stepTraffic\(/);
   assert.match(js,/drawCityDetails\(/);
+  assert.match(js,/stepPedestrians\(/);
+  assert.match(js,/stepPolice\(/);
+  assert.match(js,/collidePlayerWithActors\(/);
+  assert.match(js,/drawPedestrians\(/);
+  assert.match(js,/drawPoliceCar\(/);
 });
