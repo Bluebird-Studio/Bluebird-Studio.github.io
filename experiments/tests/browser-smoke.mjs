@@ -53,8 +53,9 @@ try {
         await page.waitForTimeout(game === 'voxel-frontier' ? 1800 : 350);
         const state = await canvas.evaluate(c => {
           const rect = c.getBoundingClientRect();
-          const gl = c.getContext('webgl2');
-          const ctx = c.getContext('2d');
+          const isVoxel = Boolean(c.closest('#game'));
+          const gl = isVoxel ? c.getContext('webgl2') : null;
+          const ctx = isVoxel ? null : c.getContext('2d');
           return { width: rect.width, height: rect.height, backingWidth: c.width, backingHeight: c.height,
             webgl: Boolean(gl && !gl.isContextLost()), canvas2d: Boolean(ctx),
             pixel: ctx ? Array.from(ctx.getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data) : null };
@@ -66,7 +67,7 @@ try {
         if (game === 'neon-streets' && (!state.canvas2d || !state.pixel || state.pixel[3] === 0)) throw new Error('Canvas 2D did not draw');
         if (mobile) await page.locator('#play').tap();
         else await page.locator('#play').click();
-        await page.waitForFunction(() => document.querySelector('#start')?.classList.contains('hidden'), { timeout: 5000 });
+        await page.waitForFunction(() => document.querySelector('#start')?.classList.contains('hidden'), null, { timeout: 5000 });
         if (game === 'neon-streets') {
           if (mobile) {
             const button = page.locator('[data-key="ArrowUp"]');
