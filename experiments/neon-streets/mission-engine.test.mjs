@@ -42,7 +42,8 @@ test('rush mission countdown, reward bonus, timeout and repeat', () => {
 test('escape requires cool heat and starts a pursuit', () => {
   const c = new MissionCampaign({getItem:()=>JSON.stringify({completed:2}),setItem:()=>{}});
   const pickup = c.advance(.1, car(PICKUPS[2]));
-  assert.equal(pickup.heatDelta, 2.5);
+  assert.equal(pickup.heatDelta, 3.4);
+  assert.equal(c.advance(.1, car(DROPS[2]), pickup.heatDelta).type, 'heat-blocked');
   assert.equal(c.advance(.1, car(DROPS[2]), 4).type, 'heat-blocked');
   assert.equal(c.advance(.1, car(DROPS[2]), 2).type, 'completed');
   assert.equal(c.state.completed, 3);
