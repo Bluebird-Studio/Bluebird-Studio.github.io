@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { VoxelWorld, groundHeight, chunkIndex, blockKey } from '../voxel-frontier/world-core.mjs';
 import { canOccupy, spawnPlayer, stepPlayer, EYE_HEIGHT } from '../voxel-frontier/player-physics.mjs';
+import { ChunkRenderer } from '../voxel-frontier/world-render.mjs';
 
 test('terrain is deterministic and has continuous bedrock', () => {
   const a = new VoxelWorld({ radius: 4 }), b = new VoxelWorld({ radius: 4 });
@@ -84,7 +85,7 @@ test('player can climb a one-block step', () => {
   const world = floorWorld([1]);
   const p = spawnPlayer(world, 0, 0);
   p.yaw = 0;
-  for (let i = 0; i < 12; i++) stepPlayer(world, p, { strafe: 1 }, .05);
+  for (let i = 0; i < 4; i++) stepPlayer(world, p, { strafe: 1 }, .05);
   assert.ok(p.x > .3, 'player should move across the step');
   assert.ok(p.y >= 1.49, 'player should stand on top of step');
 });
@@ -106,4 +107,33 @@ test('long falls do not tunnel through solid terrain', () => {
   p.y = 30; p.vy = 0; p.grounded = false;
   for (let i = 0; i < 200; i++) stepPlayer(world, p, {}, .05);
   assert.ok(Math.abs(p.y - .5) < .001);
+});
+
+test('chunk meshing culls interior faces and updates after edits', () => {
+  class BufferGeometry {
+    constructor() { this.attributes = {}; }
+    setAttribute(name, attr) { this.attributes[name] = attr; }
+    computeBoundingSphere() {}
+    dispose() {}
+  }
+  class Float32BufferAttribute { constructor(array) { this.array = array; } }
+  class Mesh { constructor(geometry, material) { this.geometry = geometry; this.material = material; this.userData = {}; } }
+  const THREE = { BufferGeometry, Float32BufferAttribute, Mesh };
+  const objects = new Set();
+  const scene = { add: object => objects.add(object), remove: object => objects.delete(object) };
+  const world = new VoxelWorld({ radius: 3 });
+  const materials = { grass: {}, stone: {}, wood: {} };
+  const renderer = new ChunkRenderer(THREE, scene, world, materials);
+  const faces = () => [...objects].reduce((sum, mesh) => sum + mesh.geometry.attributes.position.array.length / 18, 0);
+  const before = faces();
+  assert.ok(before > 0 && before < world.blocks.size * 6, 'interior faces must be removed');
+  assert.ok(objects.size < world.blocks.size / 5, 'meshing must reduce draw calls');
+  assert.equal(world.set(0, 10, 0, 'stone'), true);
+  renderer.updateAt(0, 0);
+  assert.equal(faces(), before + 6, 'isolated block adds six visible faces');
+  assert.equal(world.set(0, 10, 0, null), true);
+  renderer.updateAt(0, 0);
+  assert.equal(faces(), before);
+  renderer.dispose();
+  assert.equal(objects.size, 0);
 });
