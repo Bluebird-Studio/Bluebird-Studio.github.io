@@ -11,8 +11,20 @@ test('vehicle accelerates and stays on road', () => {
   const car = makeVehicle(500,500,0);
   for(let i=0;i<60;i++) stepVehicle(car,{throttle:1,steer:0},.05);
   assert.ok(canDrive(car.x,car.y));
-  assert.ok(car.x < 600);
+  assert.ok(car.x > 600, 'eastbound road continues past x=600');
 });
+test('diagonal motion collides with a building while road motion stays valid', () => {
+  const car = makeVehicle(500, 500, Math.PI / 4);
+  let blocked = false;
+  for (let i = 0; i < 120; i++) {
+    const result = stepVehicle(car, { throttle: 1, steer: 0 }, .05);
+    blocked ||= result.collided;
+    assert.equal(canDrive(car.x, car.y), true);
+  }
+  assert.equal(blocked, true);
+  assert.ok(car.x < 540 && car.y < 540);
+});
+
 test('traffic remains finite', () => {
   const traffic = createTraffic(8);
   stepTraffic(traffic,.05,1,makeVehicle());
