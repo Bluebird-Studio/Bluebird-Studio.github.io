@@ -170,18 +170,14 @@ function tick(now) {
       if (Math.abs(car.speed) > 75) policeHeat = Math.min(5, policeHeat + dt);
       car.speed *= -.25;
     }
-    if (Math.hypot(car.x - marker[0], car.y - marker[1]) < 37) {
-      if (stage === 'pickup') {
-        stage = 'drop';
-        marker = drops[deliveries % drops.length];
-        missionEl.textContent = 'PACKAGE COLLECTED  /  Deliver to the purple destination.';
-      } else {
-        deliveries++;
-        cash += 250 + deliveries * 50;
-        cashEl.textContent = '$' + cash.toLocaleString();
-        missionsEl.textContent = String(deliveries);
+    if (campaign) {
+      const event = campaign.advance(dt, car, policeHeat);
+      if (event) {
+        policeHeat = Math.min(5, policeHeat + (event.heatDelta || 0));
         resetMission();
+        if (event.type !== 'heat-blocked') announce(event.message);
       }
+      if (now - hudAt > 250) { resetMission(); hudAt = now; }
     }
     for (const t of traffic) {
       t.x += t.dx * t.speed * dt;
