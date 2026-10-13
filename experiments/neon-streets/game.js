@@ -145,7 +145,7 @@ function resetMission() {
   deliveries = campaign.state.completed;
   cashEl.textContent = '$' + cash.toLocaleString();
   missionsEl.textContent = String(deliveries);
-  missionEl.textContent = campaign.description();
+  missionEl.textContent = campaign.description;
 }
 
 function announce(message) {
