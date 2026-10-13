@@ -91,7 +91,7 @@ export class MissionCampaign {
       s.timeLeft = this.type === 'rush' ? 85 : 0;
       this.lastEvent = this.type === 'rush' ? 'EXPRESS JOB: 85 seconds!' :
         this.type === 'escape' ? 'GETAWAY: lose the heat, reach the drop!' : 'PACKAGE COLLECTED';
-      return { type: 'pickup', message: this.lastEvent, heatDelta: this.type === 'escape' ? 2.5 : 0 };
+      return { type: 'pickup', message: this.lastEvent, heatDelta: this.type === 'escape' ? 3.4 : 0 };
     }
     if (this.type === 'escape' && heat >= 3) return { type: 'heat-blocked', message: 'Lose the heat before delivering!' };
     return this.complete();
