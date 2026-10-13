@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { VoxelWorld, BLOCK_TYPES } from './world-core.mjs';
 import { spawnPlayer, stepPlayer, canOccupy, PLAYER_RADIUS, PLAYER_HEIGHT, EYE_HEIGHT } from './player-physics.mjs';
 import { ChunkRenderer } from './world-render.mjs';
+import { raycastVoxel } from './voxel-raycast.mjs';
 
 const game = document.querySelector('#game');
 const hud = document.querySelector('#stats');
@@ -43,8 +44,7 @@ const player = spawnPlayer(world);
 const pressed = new Set();
 let selected = 'grass', playing = false, mined = 0;
 let lastFrame = performance.now();
-const raycaster = new THREE.Raycaster();
-raycaster.far = 6.5;
+const lookDirection = new THREE.Vector3();
 const highlight = new THREE.LineSegments(
   new THREE.EdgesGeometry(new THREE.BoxGeometry(1.012, 1.012, 1.012)),
   new THREE.LineBasicMaterial({ color: 0xfff4d4, transparent: true, opacity: .72 })
@@ -61,8 +61,7 @@ function selectBlock(kind) {
   return true;
 }
 function target() {
-  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-  return chunks.pick(raycaster);
+  return raycastVoxel(world, camera.position, camera.getWorldDirection(lookDirection), 6.5);
 }
 function intersectsPlayer(x, y, z) {
   return Math.abs(player.x - x) < PLAYER_RADIUS + .5
