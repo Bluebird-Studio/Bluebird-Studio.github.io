@@ -1,0 +1,13 @@
+#minimap{position:absolute;z-index:4;top:102px;left:22px;width:176px;height:176px;border:1px solid #9f82bb88;border-radius:12px;box-shadow:0 6px 35px #05020f99;background:#0e1024;opacity:.94;pointer-events:none}
+#pause-toggle{position:absolute;z-index:5;top:76px;right:22px;background:#21152dcc;border:1px solid #b78fc47a;color:#f8ecff;padding:9px 14px;border-radius:7px;font:700 10px system-ui;letter-spacing:1.4px;cursor:pointer}
+#mission-toast{position:absolute;z-index:5;left:50%;top:149px;transform:translate(-50%,-12px);padding:10px 18px;border:1px solid #f1b6e477;border-radius:8px;background:#251533ef;color:#ffe7a6;font:700 12px system-ui;letter-spacing:.7px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+#mission-toast.visible{opacity:1;transform:translate(-50%,0)}
+#pause-panel{position:absolute;z-index:7;inset:0;background:#0c0817de;backdrop-filter:blur(9px);display:grid;place-items:center}
+#pause-panel.hidden{display:none}
+.pause-card{width:min(410px,90vw);background:linear-gradient(135deg,#2a1b3f,#171122);border:1px solid #e9a3da66;box-shadow:0 20px 90px #0009;padding:34px;border-radius:16px;text-align:center}
+.pause-card h2{font-size:clamp(42px,9vw,70px);letter-spacing:-3px;line-height:1;margin:17px 0;color:#f8dcf5}
+.pause-card p{font-size:13px;color:#d5bbd9;margin-bottom:20px}
+.pause-card button{display:block;width:100%;padding:13px 15px;margin:9px 0;background:#392447;color:#f6e8fb;border:1px solid #9c79b08a;border-radius:7px;cursor:pointer;font:700 12px system-ui;letter-spacing:1px}
+.pause-card button:first-of-type{background:#fb91bd;color:#241023;border-color:#fb91bd}
+.pause-card #new-career{background:#281526;border-color:#934a75}
+@media(max-width:650px){#minimap{top:115px;left:10px;width:112px;height:112px;border-radius:7px}#pause-toggle{top:60px;right:10px;padding:7px 9px;font-size:9px}#mission-toast{top:115px;font-size:10px;padding:8px 10px;max-width:70vw;left:65%}#mission{padding:7px 10px;max-width:80%;left:45%}#controls{z-index:6}}
