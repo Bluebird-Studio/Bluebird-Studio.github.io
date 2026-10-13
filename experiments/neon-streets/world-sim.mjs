@@ -163,8 +163,8 @@ export function createPedestrians(count = 35) {
     const row = 1 + ((i * 7 + 1) % 9), col = 1 + ((i * 13 + 2) % 9);
     const side = i % 4 < 2 ? 1 : -1;
     return {
-      x: horizontal ? 80 + ((i * 137) % 2320) : col * BLOCK + side * 59,
-      y: horizontal ? row * BLOCK + side * 59 : 80 + ((i * 179) % 2320),
+      x: horizontal ? 80 + ((i * 137) % 2320) : col * BLOCK + side * 44,
+      y: horizontal ? row * BLOCK + side * 44 : 80 + ((i * 179) % 2320),
       horizontal, direction: i % 3 ? 1 : -1, speed: 12 + (i * 7 % 14),
       color: PAINTS[(i + 3) % PAINTS.length]
     };
