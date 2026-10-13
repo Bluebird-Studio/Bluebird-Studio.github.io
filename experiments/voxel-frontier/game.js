@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { VoxelWorld, BLOCK_TYPES } from './world-core.mjs';
+import { spawnPlayer, stepPlayer, canOccupy, PLAYER_RADIUS, PLAYER_HEIGHT, EYE_HEIGHT } from './player-physics.mjs';
+import { ChunkRenderer } from './world-render.mjs';
 
 const game = document.querySelector('#game');
 const hud = document.querySelector('#stats');
@@ -7,163 +10,157 @@ const start = document.querySelector('#start');
 const error = document.querySelector('#error');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9bc6cf);
-scene.fog = new THREE.Fog(0x9bc6cf, 18, 54);
-const camera = new THREE.PerspectiveCamera(77, innerWidth / innerHeight, 0.05, 90);
+scene.fog = new THREE.Fog(0x9bc6cf, 18, 57);
+const camera = new THREE.PerspectiveCamera(76, innerWidth / innerHeight, .05, 90);
+camera.rotation.order = 'YXZ';
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = false;
 game.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xe5f4ff, 0x4d5b3e, 2.0));
-const sun = new THREE.DirectionalLight(0xfff1c6, 2.2);
+scene.add(new THREE.HemisphereLight(0xe6f3ff, 0x56633d, 2));
+const sun = new THREE.DirectionalLight(0xffefc4, 2.3);
 sun.position.set(-12, 26, 18);
 scene.add(sun);
-const size = 13;
 const materials = {
   grass: new THREE.MeshLambertMaterial({ color: 0x729b5d }),
   stone: new THREE.MeshLambertMaterial({ color: 0x8d9da0 }),
   wood: new THREE.MeshLambertMaterial({ color: 0x9e704b })
 };
-const box = new THREE.BoxGeometry(1, 1, 1);
-const map = new Map();
-const meshes = [];
-const key = (x, y, z) => x + ',' + y + ',' + z;
-const groundHeight = (x, z) => Math.max(0, Math.floor(2.1 + Math.sin(x / 3.5) * 1.2 + Math.cos(z / 4.1) * 1.3));
 const editsKey = 'voxel-frontier-world-v1';
-let edits = {};
-try { edits = JSON.parse(localStorage.getItem(editsKey) || '{}') || {}; } catch { edits = {}; }
-function notify(message) {
-  toast.textContent = message;
-}
-function addBlock(x, y, z, kind, record = false) {
-  const id = key(x, y, z);
-  if (map.has(id)) return false;
-  const m = new THREE.Mesh(box, materials[kind] || materials.stone);
-  m.position.set(x, y, z);
-  m.userData = { x, y, z, kind };
-  scene.add(m);
-  map.set(id, m);
-  meshes.push(m);
-  if (record) { edits[id] = kind; save(); }
+let savedEdits = {};
+try { savedEdits = JSON.parse(localStorage.getItem(editsKey) || '{}'); } catch {}
+let chunks;
+const world = new VoxelWorld({
+  edits: savedEdits,
+  onChange(change) {
+    try { localStorage.setItem(editsKey, JSON.stringify(world.exportEdits())); } catch {}
+    chunks?.updateAt(change.x, change.z);
+    window.dispatchEvent(new CustomEvent('voxel:block-change', { detail: change }));
+  }
+});
+chunks = new ChunkRenderer(THREE, scene, world, materials);
+const player = spawnPlayer(world);
+const pressed = new Set();
+let selected = 'grass', playing = false, mined = 0;
+let lastFrame = performance.now();
+const raycaster = new THREE.Raycaster();
+raycaster.far = 6.5;
+const highlight = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.012, 1.012, 1.012)),
+  new THREE.LineBasicMaterial({ color: 0xfff4d4, transparent: true, opacity: .72 })
+);
+highlight.visible = false;
+scene.add(highlight);
+function notify(message) { toast.textContent = message; }
+function selectBlock(kind) {
+  if (!BLOCK_TYPES.includes(kind)) return false;
+  selected = kind;
+  document.querySelectorAll('#hotbar button').forEach(button =>
+    button.classList.toggle('active', button.dataset.block === kind));
+  notify('Selected ' + kind);
   return true;
 }
-function removeBlock(m, record = false) {
-  const { x, y, z } = m.userData;
-  const id = key(x, y, z);
-  if (!map.delete(id)) return;
-  scene.remove(m);
-  const index = meshes.indexOf(m);
-  if (index !== -1) meshes.splice(index, 1);
-  if (record) { edits[id] = null; save(); }
-}
-function save() {
-  try { localStorage.setItem(editsKey, JSON.stringify(edits)); } catch {}
-}
-for (let x = -size; x <= size; x++) for (let z = -size; z <= size; z++) {
-  const h = groundHeight(x, z);
-  for (let y = -1; y <= h; y++) addBlock(x, y, z, y === h ? 'grass' : 'stone');
-}
-for (let x = -size + 3; x < size - 3; x += 6) {
-  for (let z = -size + 3; z < size - 3; z += 7) {
-    const h = groundHeight(x, z);
-    addBlock(x, h + 1, z, 'wood');
-    addBlock(x, h + 2, z, 'wood');
-  }
-}
-for (const [id, kind] of Object.entries(edits)) {
-  const [x, y, z] = id.split(',').map(Number);
-  const old = map.get(id);
-  if (old) removeBlock(old);
-  if (kind) addBlock(x, y, z, kind);
-}
-const player = { x: 0, z: 5, yaw: 0, pitch: -0.12, blocks: 0 };
-const pressed = new Set();
-let selected = 'grass';
-let playing = false;
-let lastFrame = performance.now();
-player.yaw = -0.2;
-function playerHeight() {
-  const x = Math.max(-size, Math.min(size, Math.round(player.x)));
-  const z = Math.max(-size, Math.min(size, Math.round(player.z)));
-  for (let y = 12; y >= -1; y--) if (map.has(key(x, y, z))) return y + 2.18;
-  return 3;
-}
-camera.position.set(player.x, playerHeight(), player.z);
-const raycaster = new THREE.Raycaster();
-raycaster.far = 7;
-function blockAction(place) {
+function target() {
   raycaster.setFromCamera({ x: 0, y: 0 }, camera);
-  const hit = raycaster.intersectObjects(meshes, false)[0];
-  if (!hit) return notify('Find a block within reach');
-  const m = hit.object;
-  if (place) {
-    const pos = m.position.clone().add(hit.face.normal);
-    if (Math.abs(pos.x - player.x) < .7 && Math.abs(pos.z - player.z) < .7 && Math.abs(pos.y - camera.position.y + 1) < 1.5) return;
-    if (addBlock(Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), selected, true)) notify('Placed ' + selected);
-  } else {
-    const { y } = m.userData;
-    if (y <= -1) return notify('Bedrock stays intact');
-    removeBlock(m, true);
-    player.blocks++;
-    hud.textContent = 'Blocks mined: ' + player.blocks;
-    notify('Mined ' + m.userData.kind + ' · ' + player.blocks + ' blocks');
-  }
+  return chunks.pick(raycaster);
 }
-renderer.domElement.addEventListener('click', () => {
-  if (!playing) return;
-  if (document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock?.();
-  else blockAction(false);
-});
-renderer.domElement.addEventListener('contextmenu', e => { e.preventDefault(); if (playing) blockAction(true); });
-document.addEventListener('mousemove', e => {
-  if (document.pointerLockElement !== renderer.domElement) return;
-  player.yaw -= e.movementX * 0.002;
-  player.pitch = THREE.MathUtils.clamp(player.pitch - e.movementY * 0.002, -1.48, 1.48);
-});
-document.addEventListener('keydown', e => {
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
-  pressed.add(e.code);
-  if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
-    selected = ['grass', 'stone', 'wood'][Number(e.code.slice(-1)) - 1];
-    document.querySelectorAll('#hotbar button').forEach(button => button.classList.toggle('active', button.dataset.block === selected));
-    notify('Selected ' + selected);
+function intersectsPlayer(x, y, z) {
+  return Math.abs(player.x - x) < PLAYER_RADIUS + .5
+    && Math.abs(player.z - z) < PLAYER_RADIUS + .5
+    && player.y < y + .5 && player.y + PLAYER_HEIGHT > y - .5;
+}
+function blockAction(place) {
+  const hit = target();
+  if (!hit) { notify('Move closer to a block'); return false; }
+  if (place) {
+    const { x, y, z } = hit.adjacent;
+    if (intersectsPlayer(x, y, z)) { notify('Cannot build inside yourself'); return false; }
+    if (!world.set(x, y, z, selected)) { notify('Cannot place a block there'); return false; }
+    notify('Placed ' + selected);
+    return true;
   }
+  if (hit.y <= -1) { notify('Bedrock stays intact'); return false; }
+  const kind = world.get(hit.x, hit.y, hit.z);
+  if (!kind || !world.set(hit.x, hit.y, hit.z, null)) return false;
+  mined++;
+  hud.textContent = 'Blocks mined: ' + mined;
+  notify('Mined ' + kind + ' · ' + mined + ' blocks');
+  return true;
+}
+renderer.domElement.addEventListener('mousedown', event => {
+  if (!playing) return;
+  if (event.button === 2) { event.preventDefault(); blockAction(true); return; }
+  if (event.button !== 0) return;
+  if (document.pointerLockElement !== renderer.domElement) {
+    renderer.domElement.requestPointerLock?.().catch(() => notify('Mouse lock unavailable. Use keyboard controls.'));
+    return;
+  }
+  blockAction(false);
 });
-document.addEventListener('keyup', e => pressed.delete(e.code));
-document.querySelectorAll('#hotbar button').forEach(button => button.addEventListener('click', () => {
-  selected = button.dataset.block;
-  document.querySelectorAll('#hotbar button').forEach(b => b.classList.toggle('active', b === button));
-}));
+renderer.domElement.addEventListener('contextmenu', event => event.preventDefault());
+document.addEventListener('mousemove', event => {
+  if (document.pointerLockElement !== renderer.domElement) return;
+  player.yaw -= event.movementX * .002;
+  player.pitch = THREE.MathUtils.clamp(player.pitch - event.movementY * .002, -1.48, 1.48);
+});
+document.addEventListener('pointerlockchange', () => {
+  if (playing && document.pointerLockElement !== renderer.domElement) notify('Click the world to capture your mouse');
+});
+document.addEventListener('keydown', event => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(event.code)) event.preventDefault();
+  pressed.add(event.code);
+  if (/^Digit[123]$/.test(event.code)) selectBlock(BLOCK_TYPES[Number(event.code.slice(-1)) - 1]);
+});
+document.addEventListener('keyup', event => pressed.delete(event.code));
+window.addEventListener('blur', () => pressed.clear());
+document.querySelectorAll('#hotbar button').forEach(button =>
+  button.addEventListener('click', () => selectBlock(button.dataset.block)));
 document.querySelector('#play').addEventListener('click', () => {
   playing = true;
   start.classList.add('hidden');
-  renderer.domElement.requestPointerLock?.().catch(() => {});
-  notify('Explore. Mine. Build.');
+  renderer.domElement.requestPointerLock?.().catch(() => notify('Click the world to capture your mouse'));
+  notify('WASD move · Space jump · Shift sprint · Mine and build');
 });
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
+window.addEventListener('error', event => { error.textContent = 'Game error: ' + event.message; });
+
+window.voxelFrontier = Object.freeze({
+  world, player, camera, scene,
+  selectBlock,
+  get selectedBlock() { return selected; },
+  get playing() { return playing; },
+  get minedBlocks() { return mined; },
+  mine: () => blockAction(false),
+  place: () => blockAction(true),
+  resetWorld() { try { localStorage.removeItem(editsKey); } catch {} location.reload(); }
+});
+
 function tick(now) {
   requestAnimationFrame(tick);
-  const dt = Math.min(.05, (now - lastFrame) / 1000);
+  const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
   lastFrame = now;
   if (playing) {
-    const fwd = Number(pressed.has('KeyW') || pressed.has('ArrowUp')) - Number(pressed.has('KeyS') || pressed.has('ArrowDown'));
-    const side = Number(pressed.has('KeyD') || pressed.has('ArrowRight')) - Number(pressed.has('KeyA') || pressed.has('ArrowLeft'));
-    const len = Math.hypot(fwd, side) || 1;
-    const speed = pressed.has('ShiftLeft') ? 8 : 5;
-    const dx = (-Math.sin(player.yaw) * fwd + Math.cos(player.yaw) * side) / len * speed * dt;
-    const dz = (-Math.cos(player.yaw) * fwd - Math.sin(player.yaw) * side) / len * speed * dt;
-    player.x = THREE.MathUtils.clamp(player.x + dx, -size + .7, size - .7);
-    player.z = THREE.MathUtils.clamp(player.z + dz, -size + .7, size - .7);
-    camera.position.set(player.x, THREE.MathUtils.lerp(camera.position.y, playerHeight(), Math.min(1, dt * 9)), player.z);
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = player.yaw;
-    camera.rotation.x = player.pitch;
+    const forward = Number(pressed.has('KeyW') || pressed.has('ArrowUp')) -
+      Number(pressed.has('KeyS') || pressed.has('ArrowDown'));
+    const strafe = Number(pressed.has('KeyD') || pressed.has('ArrowRight')) -
+      Number(pressed.has('KeyA') || pressed.has('ArrowLeft'));
+    stepPlayer(world, player, {
+      forward, strafe, sprint: pressed.has('ShiftLeft') || pressed.has('ShiftRight'),
+      jump: pressed.has('Space')
+    }, dt);
   }
+  camera.position.set(player.x, player.y + EYE_HEIGHT, player.z);
+  camera.rotation.y = player.yaw;
+  camera.rotation.x = player.pitch;
+  if (playing && document.pointerLockElement === renderer.domElement) {
+    const hit = target();
+    highlight.visible = !!hit;
+    if (hit) highlight.position.set(hit.x, hit.y, hit.z);
+  } else highlight.visible = false;
   renderer.render(scene, camera);
 }
-window.addEventListener('error', e => { error.textContent = 'Rendering error: ' + e.message; });
 requestAnimationFrame(tick);
