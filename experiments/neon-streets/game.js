@@ -149,6 +149,14 @@ function resetMission() {
   missionEl.textContent = campaign.description();
 }
 
+function announce(message) {
+  const el = document.getElementById('mission-toast');
+  el.textContent = message;
+  el.classList.add('visible');
+  clearTimeout(announce.timer);
+  announce.timer = setTimeout(() => el.classList.remove('visible'), 2600);
+}
+
 function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(.05, Math.max(0, (now - last) / 1000));
