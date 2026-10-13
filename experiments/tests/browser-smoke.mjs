@@ -14,6 +14,7 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url || '/', 'http://localhost');
     const pathname = decodeURIComponent(url.pathname);
+    if (pathname === '/favicon.ico') { res.writeHead(204).end(); return; }
     const path = resolve(root, '.' + pathname, pathname.endsWith('/') ? 'index.html' : '');
     const rel = relative(root, path);
     if (rel === '..' || rel.startsWith('..' + sep) || path === root) { res.writeHead(403).end('Forbidden'); return; }
