@@ -1,3 +1,4 @@
+import { CITY, BLOCK, ROAD } from './world-sim.mjs';
 (() => {
 'use strict';
 const canvas = document.getElementById('canvas');
@@ -7,7 +8,6 @@ const missionsEl = document.getElementById('missions');
 const speedEl = document.getElementById('speed');
 const missionEl = document.getElementById('mission');
 const startEl = document.getElementById('start');
-const CITY = 2500, BLOCK = 250, ROAD = 76;
 let w = 0, h = 0, dpr = 1, last = performance.now(), playing = false;
 let cash = 0, deliveries = 0, policeHeat = 0, stage = 'pickup';
 const keys = new Set();
