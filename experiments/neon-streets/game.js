@@ -19,7 +19,8 @@ let marker = pickups[0];
 const traffic = createTraffic(28);
 const pedestrians = createPedestrians(48);
 const police = [];
-let worldTime = 0, impactFlash = 0, noticeTimeout = 0;
+let worldTime = 0, impactFlash = 0, policeSpawnCooldown = 0;
+let lastImpactTime = -10;
 // World simulation is activated in the frame loop.
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -138,19 +139,11 @@ function tick(now) {
     worldTime += dt;
     const throttle = Number(keys.has('ArrowUp') || keys.has('KeyW')) - Number(keys.has('ArrowDown') || keys.has('KeyS'));
     const steer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
-    car.speed += throttle * 260 * dt;
-    car.speed *= Math.pow(.982, dt * 60);
-    if (!throttle && Math.abs(car.speed) < .5) car.speed = 0;
-    car.speed = Math.max(-100, Math.min(275, car.speed));
-    car.angle += steer * dt * 2.25 * Math.min(1, Math.abs(car.speed) / 60) * (car.speed < 0 ? -1 : 1);
-    const nextX = car.x + Math.cos(car.angle) * car.speed * dt;
-    const nextY = car.y + Math.sin(car.angle) * car.speed * dt;
-    if (isRoad(nextX, nextY, 6) && nextX > 20 && nextX < CITY - 20 && nextY > 20 && nextY < CITY - 20) {
-      car.x = nextX;
-      car.y = nextY;
-    } else {
-      if (Math.abs(car.speed) > 75) policeHeat = Math.min(5, policeHeat + dt);
-      car.speed *= -.25;
+    const physics = stepVehicle(car, { throttle, steer, handbrake: keys.has('Space') }, dt);
+    if (physics.collided && physics.impactSpeed > 55) {
+      policeHeat = Math.min(5, policeHeat + .5);
+      impactFlash = .3;
+      lastImpactTime = worldTime;
     }
     if (Math.hypot(car.x - marker[0], car.y - marker[1]) < 37) {
       if (stage === 'pickup') {
@@ -165,18 +158,27 @@ function tick(now) {
         resetMission();
       }
     }
-    for (const t of traffic) {
-      t.x += t.dx * t.speed * dt;
-      t.y += t.dy * t.speed * dt;
-      if (t.x < 0) t.x = CITY;
-      if (t.x > CITY) t.x = 0;
-      if (t.y < 0) t.y = CITY;
-      if (t.y > CITY) t.y = 0;
-      if (Math.hypot(car.x - t.x, car.y - t.y) < 25 && Math.abs(car.speed) > 10) {
-        car.speed *= -.3;
-        policeHeat = Math.min(5, policeHeat + .5);
+    stepTraffic(traffic, dt, worldTime, car);
+    stepPedestrians(pedestrians, dt);
+    policeSpawnCooldown = Math.max(0, policeSpawnCooldown - dt);
+    const desiredPolice = Math.min(3, Math.floor(policeHeat + .2));
+    if (police.length < desiredPolice && policeSpawnCooldown === 0) {
+      police.push(createPolice(car, police.length));
+      policeSpawnCooldown = 2;
+    }
+    if (police.length > desiredPolice && policeHeat < .5) police.length = 0;
+    stepPolice(police, car, dt);
+    const actorCollision = collidePlayerWithActors(car, traffic, police);
+    if (actorCollision.impact) {
+      impactFlash = .32;
+      lastImpactTime = worldTime;
+      policeHeat = Math.min(5, policeHeat + (actorCollision.police ? 1.1 : .55));
+      if (actorCollision.police && cash >= 100) {
+        cash -= 100;
+        cashEl.textContent = '$' + cash.toLocaleString();
       }
     }
+    impactFlash = Math.max(0, impactFlash - dt);
     speedEl.innerHTML = String(Math.round(Math.abs(car.speed) * .65)).padStart(2,'0') + ' <span>KM/H</span>';
     policeHeat = Math.max(0, policeHeat - dt * .025);
   }
@@ -188,10 +190,16 @@ function tick(now) {
   ctx.rect(0, 0, w, h);
   ctx.clip();
   worldBackground(cx, cy);
+  drawCityDetails(ctx, cx, cy, w, h, worldTime);
+  drawPedestrians(ctx, pedestrians, cx, cy, w, h, worldTime);
   for (const t of traffic) {
     const x = t.x - cx, y = t.y - cy;
     if (x < -40 || y < -40 || x > w + 40 || y > h + 40) continue;
-    drawCar(x, y, Math.atan2(t.dy, t.dx), t.tint, false);
+    drawCar(x, y, t.angle, t.tint, false);
+  }
+  for (const p of police) {
+    const x = p.x - cx, y = p.y - cy;
+    if (x >= -45 && y >= -45 && x <= w + 45 && y <= h + 45) drawPoliceCar(ctx, x, y, p.angle, worldTime);
   }
   drawMarker(marker[0] - cx, marker[1] - cy, stage === 'pickup' ? 'PICKUP' : 'DROP', stage === 'pickup' ? '#ffd65c' : '#f68cff', now);
   drawCar(w / 2, h / 2, car.angle, '#f777ac', true);
@@ -201,6 +209,10 @@ function tick(now) {
   glow.addColorStop(1,'#070411a3');
   ctx.fillStyle=glow;
   ctx.fillRect(0,0,w,h);
+  if (impactFlash > 0) {
+    ctx.fillStyle = 'rgba(255, 80, 120, ' + (impactFlash * .24) + ')';
+    ctx.fillRect(0, 0, w, h);
+  }
   if (policeHeat > .2) {
     ctx.fillStyle='#ffa4b4';
     ctx.font='bold 12px monospace';
