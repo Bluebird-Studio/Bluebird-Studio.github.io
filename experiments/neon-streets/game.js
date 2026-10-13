@@ -139,11 +139,16 @@ function drawMarker(x, y, label, color, now) {
   ctx.restore();
 }
 function resetMission() {
-  const i = deliveries % pickups.length;
-  marker = pickups[i];
-  stage = 'pickup';
-  missionEl.textContent = 'JOB ' + (deliveries + 1) + '  /  Collect the yellow package marker.';
+  if (!campaign) return;
+  marker = campaign.marker;
+  stage = campaign.state.stage;
+  cash = campaign.state.cash;
+  deliveries = campaign.state.completed;
+  cashEl.textContent = '$' + cash.toLocaleString();
+  missionsEl.textContent = String(deliveries);
+  missionEl.textContent = campaign.description();
 }
+
 function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(.05, Math.max(0, (now - last) / 1000));
