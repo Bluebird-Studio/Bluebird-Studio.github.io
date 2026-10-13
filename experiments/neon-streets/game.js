@@ -20,7 +20,7 @@ let w = 0, h = 0, dpr = 1, last = performance.now(), playing = false;
 let cash = 0, deliveries = 0, policeHeat = 0, stage = 'pickup';
 const keys = new Set();
 const car = { x: 500, y: 500, angle: -Math.PI / 2, speed: 0 };
-let marker = pickups[0];
+let marker = [750, 500];
 const traffic = [];
 window.neonHooks={active:()=>playing,pause:v=>{paused=v;keys.clear()},status:()=>({cash,completed:deliveries}),restart:f=>{f?campaign?.newCareer():campaign?.resetActive();car.x=500;car.y=500;car.angle=-Math.PI/2;car.speed=0;policeHeat=0;resetMission();announce('Mission restarted.')}};
 for (let i = 0; i < 24; i++) {
@@ -241,9 +241,10 @@ document.querySelectorAll('#controls button').forEach(button => {
   for(const t of ['pointerup','pointercancel','lostpointercapture']) button.addEventListener(t,()=>keys.delete(k));
 });
 document.querySelector('#play').addEventListener('click',()=>{
-  startEl.classList.add('hidden');
-  playing=true;
-  resetMission();
+  ready.then(() => { startEl.classList.add('hidden'); playing=true; resetMission(); }).catch(error => {
+    console.error(error);
+    missionEl.textContent = 'Unable to load missions. Reload to retry.';
+  });
 });
 requestAnimationFrame(tick);
 })();
