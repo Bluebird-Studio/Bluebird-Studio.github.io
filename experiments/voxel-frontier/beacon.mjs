@@ -3,8 +3,13 @@ export function installBeacon(api, state, persist) {
   let crystal = null;
   function show() {
     if (crystal || !state.beacon) return false;
-    const x = state.beaconPosition?.x ?? Math.round(api.player.x);
-    const z = state.beaconPosition?.z ?? Math.round(api.player.z);
+    const radius = api.world.radius ?? 13;
+    const ahead = {
+      x: Math.round(api.player.x - Math.sin(api.player.yaw) * 2),
+      z: Math.round(api.player.z - Math.cos(api.player.yaw) * 2)
+    };
+    const x = state.beaconPosition?.x ?? Math.max(-radius, Math.min(radius, ahead.x));
+    const z = state.beaconPosition?.z ?? Math.max(-radius, Math.min(radius, ahead.z));
     const y = state.beaconPosition?.y ?? api.world.highestAt(x, z) + 1.5;
     crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.7),
       new THREE.MeshStandardMaterial({ color: 0xffd590, emissive: 0xffac40, emissiveIntensity: 2.2 }));
