@@ -20,6 +20,7 @@ const traffic = createTraffic(28);
 const pedestrians = createPedestrians(48);
 const police = [];
 let worldTime = 0, impactFlash = 0, noticeTimeout = 0;
+// World simulation is activated in the frame loop.
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
   w = window.innerWidth;
