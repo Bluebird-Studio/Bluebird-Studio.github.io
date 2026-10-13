@@ -20,10 +20,9 @@ let w = 0, h = 0, dpr = 1, last = performance.now(), playing = false;
 let cash = 0, deliveries = 0, policeHeat = 0, stage = 'pickup';
 const keys = new Set();
 const car = { x: 500, y: 500, angle: -Math.PI / 2, speed: 0 };
-const pickups = [[750,500],[1000,1000],[1750,1250],[500,1750],[2000,2000],[1250,750],[750,2000]];
-const drops = [[1500,500],[500,1250],[750,1750],[2000,750],[1000,2000],[1750,1500],[250,250]];
 let marker = pickups[0];
 const traffic = [];
+window.neonHooks={active:()=>playing,pause:v=>{paused=v;keys.clear()},status:()=>({cash,completed:deliveries}),restart:f=>{f?campaign?.newCareer():campaign?.resetActive();car.x=500;car.y=500;car.angle=-Math.PI/2;car.speed=0;policeHeat=0;resetMission();announce('Mission restarted.')}};
 for (let i = 0; i < 24; i++) {
   const row = 1 + (i * 7 % 9);
   const col = 1 + (i * 11 % 9);
@@ -223,6 +222,7 @@ function tick(now) {
   glow.addColorStop(1,'#070411a3');
   ctx.fillStyle=glow;
   ctx.fillRect(0,0,w,h);
+  if(renderMiniMap&&now-hudAt<30)renderMiniMap(document.getElementById('minimap'),car,marker,CITY,BLOCK);
   if (policeHeat > .2) {
     ctx.fillStyle='#ffa4b4';
     ctx.font='bold 12px monospace';
