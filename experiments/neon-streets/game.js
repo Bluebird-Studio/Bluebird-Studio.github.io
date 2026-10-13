@@ -7,6 +7,14 @@ const missionsEl = document.getElementById('missions');
 const speedEl = document.getElementById('speed');
 const missionEl = document.getElementById('mission');
 const startEl = document.getElementById('start');
+let campaign = null, renderMiniMap = null, paused = false, hudAt = 0;
+const ready = Promise.all([import('./mission-engine.mjs'),import('./mission-hud.mjs')]).then(([m,h])=>{
+  let storage = null;
+  try { storage = window.localStorage; } catch {}
+  campaign = new m.MissionCampaign(storage);
+  renderMiniMap = h.drawMiniMap;
+  resetMission();
+});
 const CITY = 2500, BLOCK = 250, ROAD = 76;
 let w = 0, h = 0, dpr = 1, last = performance.now(), playing = false;
 let cash = 0, deliveries = 0, policeHeat = 0, stage = 'pickup';
