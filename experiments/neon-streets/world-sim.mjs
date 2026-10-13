@@ -109,28 +109,41 @@ export function stepTraffic(traffic, dt, seconds, player) {
 export function createPolice(player, id = 0) {
   const px = clamp(Math.round(player.x / BLOCK) * BLOCK + (id % 2 ? -2 : 2) * BLOCK, BLOCK, CITY - BLOCK);
   const py = clamp(Math.round(player.y / BLOCK) * BLOCK + (id % 2 ? 1 : -1) * BLOCK, BLOCK, CITY - BLOCK);
-  return { id, x: px, y: py, dir: id % 2 ? 1 : 0, speed: 135 + id * 16, tint: '#4d95f5', angle: 0, siren: 0 };
+  return { id, x: px, y: py, tx: px, ty: py, dir: 0, speed: 135 + id * 16, tint: '#4d95f5', angle: 0, siren: 0 };
 }
 const DIRS = [[1,0],[0,1],[-1,0],[0,-1]];
+// Follow explicit intersection-to-intersection waypoints. Never repeatedly snap to a nearby junction.
 export function stepPolice(police, player, dt) {
   dt = clamp(dt, 0, .08);
   for (const p of police) {
-    const gx = Math.round(p.x / BLOCK) * BLOCK, gy = Math.round(p.y / BLOCK) * BLOCK;
-    if (Math.hypot(p.x - gx, p.y - gy) < p.speed * dt + 1) {
-      p.x = gx; p.y = gy;
-      const dx = player.x - p.x, dy = player.y - p.y;
-      const preferX = Math.abs(dx) > Math.abs(dy);
-      let target = preferX ? (dx >= 0 ? 0 : 2) : (dy >= 0 ? 1 : 3);
-      const alt = preferX ? (dy >= 0 ? 1 : 3) : (dx >= 0 ? 0 : 2);
-      const v = DIRS[target];
-      if (p.x + v[0] * BLOCK < 0 || p.x + v[0] * BLOCK > CITY ||
-          p.y + v[1] * BLOCK < 0 || p.y + v[1] * BLOCK > CITY) target = alt;
-      p.dir = target;
+    if (!Number.isFinite(p.tx)) { p.tx = p.x; p.ty = p.y; }
+    let remaining = p.speed * dt;
+    let iterations = 0;
+    while (remaining > 0 && iterations++ < 3) {
+      const toTarget = Math.hypot(p.tx - p.x, p.ty - p.y);
+      if (toTarget < 1e-5) {
+        const choices = DIRS.map(([dx,dy],dir) => ({
+          dir, dx, dy, nx: p.x + dx * BLOCK, ny: p.y + dy * BLOCK
+        })).filter(q => q.nx >= 0 && q.nx <= CITY && q.ny >= 0 && q.ny <= CITY);
+        choices.sort((a,b) => {
+          const score = q => Math.abs(q.nx - player.x) + Math.abs(q.ny - player.y)
+            + (q.dir === ((p.dir + 2) % 4) ? 25 : 0);
+          return score(a) - score(b);
+        });
+        const next = choices[0];
+        if (!next) break;
+        p.dir = next.dir;
+        p.tx = next.nx;
+        p.ty = next.ny;
+        p.angle = Math.atan2(next.dy,next.dx);
+        continue;
+      }
+      const move = Math.min(remaining, toTarget);
+      p.x += (p.tx - p.x) / toTarget * move;
+      p.y += (p.ty - p.y) / toTarget * move;
+      remaining -= move;
+      if (move >= toTarget - 1e-5) { p.x = p.tx; p.y = p.ty; }
     }
-    const [dx,dy] = DIRS[p.dir];
-    p.x = clamp(p.x + dx * p.speed * dt, 0, CITY);
-    p.y = clamp(p.y + dy * p.speed * dt, 0, CITY);
-    p.angle = Math.atan2(dy, dx);
     p.siren += dt * 8;
   }
 }
