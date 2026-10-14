@@ -1,3 +1,5 @@
+import { isRoad, CITY, BLOCK, ROAD, makeVehicle, stepVehicle, createTraffic, stepTraffic, createPolice, stepPolice, collidePlayerWithActors, createPedestrians, stepPedestrians } from './world-sim.mjs';
+import { drawCityDetails, drawPedestrians, drawPoliceCar } from './world-art.mjs';
 (() => {
 'use strict';
 const canvas = document.getElementById('canvas');
@@ -15,20 +17,20 @@ const ready = Promise.all([import('./mission-engine.mjs'),import('./mission-hud.
   renderMiniMap = h.drawMiniMap;
   resetMission();
 });
-const CITY = 2500, BLOCK = 250, ROAD = 76;
 let w = 0, h = 0, dpr = 1, last = performance.now(), playing = false;
 let cash = 0, deliveries = 0, policeHeat = 0, stage = 'pickup';
 const keys = new Set();
-const car = { x: 500, y: 500, angle: -Math.PI / 2, speed: 0 };
-let marker = [750, 500];
-const traffic = [];
-window.neonHooks={active:()=>playing,pause:v=>{paused=v;keys.clear()},status:()=>({cash,completed:deliveries}),restart:f=>{f?campaign?.newCareer():campaign?.resetActive();car.x=500;car.y=500;car.angle=-Math.PI/2;car.speed=0;policeHeat=0;resetMission();announce('Mission restarted.')}};
-for (let i = 0; i < 24; i++) {
-  const row = 1 + (i * 7 % 9);
-  const col = 1 + (i * 11 % 9);
-  const horizontal = i % 2 === 0;
-  traffic.push({ x: col * BLOCK, y: row * BLOCK, dx: horizontal ? (i % 4 === 0 ? 1 : -1) : 0, dy: !horizontal ? (i % 3 === 0 ? 1 : -1) : 0, speed: 60 + i % 5 * 14, tint: ['#f6be70','#b16bba','#82caca','#80b66f'][i % 4] });
-}
+window.neonHooks={active:()=>playing,pause:v=>{paused=v;keys.clear()},status:()=>({cash,completed:deliveries}),restart:f=>{f?campaign?.newCareer():campaign?.resetActive();Object.assign(car,makeVehicle());policeHeat=0;police.length=0;resetMission();announce('Mission restarted.')}};
+const car = makeVehicle();
+const pickups = [[750,500],[1000,1000],[1750,1250],[500,1750],[2000,2000],[1250,750],[750,2000]];
+const drops = [[1500,500],[500,1250],[750,1750],[2000,750],[1000,2000],[1750,1500],[250,250]];
+let marker = pickups[0];
+const traffic = createTraffic(28);
+const pedestrians = createPedestrians(48);
+const police = [];
+let worldTime = 0, impactFlash = 0, policeSpawnCooldown = 0;
+let lastImpactTime = -10;
+// World simulation is activated in the frame loop.
 function resize() {
   dpr = Math.min(2, window.devicePixelRatio || 1);
   w = window.innerWidth;
@@ -39,11 +41,6 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
-function isRoad(x, y, margin = 0) {
-  const dx = Math.abs(((x + BLOCK / 2) % BLOCK + BLOCK) % BLOCK - BLOCK / 2);
-  const dy = Math.abs(((y + BLOCK / 2) % BLOCK + BLOCK) % BLOCK - BLOCK / 2);
-  return dx < ROAD / 2 - margin || dy < ROAD / 2 - margin;
-}
 const seed = (x, y) => {
   const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return n - Math.floor(n);
@@ -143,39 +140,19 @@ function resetMission() {
   stage = campaign.state.stage;
   cash = campaign.state.cash;
   deliveries = campaign.state.completed;
-  cashEl.textContent = '$' + cash.toLocaleString();
-  missionsEl.textContent = String(deliveries);
-  missionEl.textContent = campaign.description;
-}
-
-function announce(message) {
-  const el = document.getElementById('mission-toast');
-  el.textContent = message;
-  el.classList.add('visible');
-  clearTimeout(announce.timer);
-  announce.timer = setTimeout(() => el.classList.remove('visible'), 2600);
-}
-
-function tick(now) {
+  cashEl.textContent = 'function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(.05, Math.max(0, (now - last) / 1000));
   last = now;
   if (playing && !paused) {
+    worldTime += dt;
     const throttle = Number(keys.has('ArrowUp') || keys.has('KeyW')) - Number(keys.has('ArrowDown') || keys.has('KeyS'));
     const steer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
-    car.speed += throttle * 260 * dt;
-    car.speed *= Math.pow(.982, dt * 60);
-    if (!throttle && Math.abs(car.speed) < .5) car.speed = 0;
-    car.speed = Math.max(-100, Math.min(275, car.speed));
-    car.angle += steer * dt * 2.25 * Math.min(1, Math.abs(car.speed) / 60) * (car.speed < 0 ? -1 : 1);
-    const nextX = car.x + Math.cos(car.angle) * car.speed * dt;
-    const nextY = car.y + Math.sin(car.angle) * car.speed * dt;
-    if (isRoad(nextX, nextY, 6) && nextX > 20 && nextX < CITY - 20 && nextY > 20 && nextY < CITY - 20) {
-      car.x = nextX;
-      car.y = nextY;
-    } else {
-      if (Math.abs(car.speed) > 75) policeHeat = Math.min(5, policeHeat + dt);
-      car.speed *= -.25;
+    const physics = stepVehicle(car, { throttle, steer, handbrake: keys.has('Space') }, dt);
+    if (physics.collided && physics.impactSpeed > 55) {
+      policeHeat = Math.min(5, policeHeat + .5);
+      impactFlash = .3;
+      lastImpactTime = worldTime;
     }
     if (campaign) {
       const event = campaign.advance(dt, car, policeHeat);
@@ -186,18 +163,27 @@ function tick(now) {
       }
       if (now - hudAt > 250) { resetMission(); hudAt = now; }
     }
-    for (const t of traffic) {
-      t.x += t.dx * t.speed * dt;
-      t.y += t.dy * t.speed * dt;
-      if (t.x < 0) t.x = CITY;
-      if (t.x > CITY) t.x = 0;
-      if (t.y < 0) t.y = CITY;
-      if (t.y > CITY) t.y = 0;
-      if (Math.hypot(car.x - t.x, car.y - t.y) < 25 && Math.abs(car.speed) > 10) {
-        car.speed *= -.3;
-        policeHeat = Math.min(5, policeHeat + .5);
+    stepTraffic(traffic, dt, worldTime, car);
+    stepPedestrians(pedestrians, dt);
+    policeSpawnCooldown = Math.max(0, policeSpawnCooldown - dt);
+    const desiredPolice = Math.min(3, Math.floor(policeHeat + .2));
+    if (police.length < desiredPolice && policeSpawnCooldown === 0) {
+      police.push(createPolice(car, police.length));
+      policeSpawnCooldown = 2;
+    }
+    if (police.length > desiredPolice && policeHeat < .5) police.length = 0;
+    stepPolice(police, car, dt);
+    const actorCollision = collidePlayerWithActors(car, traffic, police);
+    if (actorCollision.impact) {
+      impactFlash = .32;
+      lastImpactTime = worldTime;
+      policeHeat = Math.min(5, policeHeat + (actorCollision.police ? 1.1 : .55));
+      if (!campaign && actorCollision.police && cash >= 100) {
+        cash -= 100;
+        cashEl.textContent = '$' + cash.toLocaleString();
       }
     }
+    impactFlash = Math.max(0, impactFlash - dt);
     speedEl.innerHTML = String(Math.round(Math.abs(car.speed) * .65)).padStart(2,'0') + ' <span>KM/H</span>';
     policeHeat = Math.max(0, policeHeat - dt * .025);
   }
@@ -209,11 +195,18 @@ function tick(now) {
   ctx.rect(0, 0, w, h);
   ctx.clip();
   worldBackground(cx, cy);
+  drawCityDetails(ctx, cx, cy, w, h, worldTime);
+  drawPedestrians(ctx, pedestrians, cx, cy, w, h, worldTime);
   for (const t of traffic) {
     const x = t.x - cx, y = t.y - cy;
     if (x < -40 || y < -40 || x > w + 40 || y > h + 40) continue;
-    drawCar(x, y, Math.atan2(t.dy, t.dx), t.tint, false);
+    drawCar(x, y, t.angle, t.tint, false);
   }
+  for (const p of police) {
+    const x = p.x - cx, y = p.y - cy;
+    if (x >= -45 && y >= -45 && x <= w + 45 && y <= h + 45) drawPoliceCar(ctx, x, y, p.angle, worldTime);
+  }
+  if (renderMiniMap && now - hudAt < 300) renderMiniMap(document.getElementById('minimap'),car,marker,CITY,BLOCK);
   drawMarker(marker[0] - cx, marker[1] - cy, stage === 'pickup' ? 'PICKUP' : 'DROP', stage === 'pickup' ? '#ffd65c' : '#f68cff', now);
   drawCar(w / 2, h / 2, car.angle, '#f777ac', true);
   ctx.restore();
@@ -222,7 +215,10 @@ function tick(now) {
   glow.addColorStop(1,'#070411a3');
   ctx.fillStyle=glow;
   ctx.fillRect(0,0,w,h);
-  if(renderMiniMap&&now-hudAt<30)renderMiniMap(document.getElementById('minimap'),car,marker,CITY,BLOCK);
+  if (impactFlash > 0) {
+    ctx.fillStyle = 'rgba(255, 80, 120, ' + (impactFlash * .24) + ')';
+    ctx.fillRect(0, 0, w, h);
+  }
   if (policeHeat > .2) {
     ctx.fillStyle='#ffa4b4';
     ctx.font='bold 12px monospace';
@@ -241,10 +237,125 @@ document.querySelectorAll('#controls button').forEach(button => {
   for(const t of ['pointerup','pointercancel','lostpointercapture']) button.addEventListener(t,()=>keys.delete(k));
 });
 document.querySelector('#play').addEventListener('click',()=>{
-  ready.then(() => { startEl.classList.add('hidden'); playing=true; resetMission(); }).catch(error => {
-    console.error(error);
-    missionEl.textContent = 'Unable to load missions. Reload to retry.';
-  });
+  ready.then(() => { startEl.classList.add('hidden'); playing=true; resetMission(); }).catch(error => { console.error(error); missionEl.textContent='Unable to load missions. Reload to retry.'; });
+});
+requestAnimationFrame(tick);
+})(); + cash.toLocaleString();
+  missionsEl.textContent = String(deliveries);
+  missionEl.textContent = campaign.description;
+}
+
+function announce(message) {
+  const el = document.getElementById('mission-toast');
+  el.textContent = message;
+  el.classList.add('visible');
+  clearTimeout(announce.timer);
+  announce.timer = setTimeout(() => el.classList.remove('visible'), 2600);
+}
+
+function tick(now) {
+  requestAnimationFrame(tick);
+  const dt = Math.min(.05, Math.max(0, (now - last) / 1000));
+  last = now;
+  if (playing) {
+    worldTime += dt;
+    const throttle = Number(keys.has('ArrowUp') || keys.has('KeyW')) - Number(keys.has('ArrowDown') || keys.has('KeyS'));
+    const steer = Number(keys.has('ArrowRight') || keys.has('KeyD')) - Number(keys.has('ArrowLeft') || keys.has('KeyA'));
+    const physics = stepVehicle(car, { throttle, steer, handbrake: keys.has('Space') }, dt);
+    if (physics.collided && physics.impactSpeed > 55) {
+      policeHeat = Math.min(5, policeHeat + .5);
+      impactFlash = .3;
+      lastImpactTime = worldTime;
+    }
+    if (Math.hypot(car.x - marker[0], car.y - marker[1]) < 37) {
+      if (stage === 'pickup') {
+        stage = 'drop';
+        marker = drops[deliveries % drops.length];
+        missionEl.textContent = 'PACKAGE COLLECTED  /  Deliver to the purple destination.';
+      } else {
+        deliveries++;
+        cash += 250 + deliveries * 50;
+        cashEl.textContent = '$' + cash.toLocaleString();
+        missionsEl.textContent = String(deliveries);
+        resetMission();
+      }
+    }
+    stepTraffic(traffic, dt, worldTime, car);
+    stepPedestrians(pedestrians, dt);
+    policeSpawnCooldown = Math.max(0, policeSpawnCooldown - dt);
+    const desiredPolice = Math.min(3, Math.floor(policeHeat + .2));
+    if (police.length < desiredPolice && policeSpawnCooldown === 0) {
+      police.push(createPolice(car, police.length));
+      policeSpawnCooldown = 2;
+    }
+    if (police.length > desiredPolice && policeHeat < .5) police.length = 0;
+    stepPolice(police, car, dt);
+    const actorCollision = collidePlayerWithActors(car, traffic, police);
+    if (actorCollision.impact) {
+      impactFlash = .32;
+      lastImpactTime = worldTime;
+      policeHeat = Math.min(5, policeHeat + (actorCollision.police ? 1.1 : .55));
+      if (actorCollision.police && cash >= 100) {
+        cash -= 100;
+        cashEl.textContent = '$' + cash.toLocaleString();
+      }
+    }
+    impactFlash = Math.max(0, impactFlash - dt);
+    speedEl.innerHTML = String(Math.round(Math.abs(car.speed) * .65)).padStart(2,'0') + ' <span>KM/H</span>';
+    policeHeat = Math.max(0, policeHeat - dt * .025);
+  }
+  const cx = car.x - w / 2, cy = car.y - h / 2;
+  ctx.fillStyle = '#100d1d';
+  ctx.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.clip();
+  worldBackground(cx, cy);
+  drawCityDetails(ctx, cx, cy, w, h, worldTime);
+  drawPedestrians(ctx, pedestrians, cx, cy, w, h, worldTime);
+  for (const t of traffic) {
+    const x = t.x - cx, y = t.y - cy;
+    if (x < -40 || y < -40 || x > w + 40 || y > h + 40) continue;
+    drawCar(x, y, t.angle, t.tint, false);
+  }
+  for (const p of police) {
+    const x = p.x - cx, y = p.y - cy;
+    if (x >= -45 && y >= -45 && x <= w + 45 && y <= h + 45) drawPoliceCar(ctx, x, y, p.angle, worldTime);
+  }
+  drawMarker(marker[0] - cx, marker[1] - cy, stage === 'pickup' ? 'PICKUP' : 'DROP', stage === 'pickup' ? '#ffd65c' : '#f68cff', now);
+  drawCar(w / 2, h / 2, car.angle, '#f777ac', true);
+  ctx.restore();
+  const glow = ctx.createRadialGradient(w/2,h/2,w*.18,w/2,h/2,Math.max(w,h)*.77);
+  glow.addColorStop(0,'#09031800');
+  glow.addColorStop(1,'#070411a3');
+  ctx.fillStyle=glow;
+  ctx.fillRect(0,0,w,h);
+  if (impactFlash > 0) {
+    ctx.fillStyle = 'rgba(255, 80, 120, ' + (impactFlash * .24) + ')';
+    ctx.fillRect(0, 0, w, h);
+  }
+  if (policeHeat > .2) {
+    ctx.fillStyle='#ffa4b4';
+    ctx.font='bold 12px monospace';
+    ctx.textAlign='center';
+    ctx.fillText('HEAT ' + '◆'.repeat(Math.ceil(policeHeat)), w / 2, h - 28);
+  }
+}
+const keyStart = e => { if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault(); keys.add(e.code); };
+const keyStop = e => keys.delete(e.code);
+window.addEventListener('keydown',keyStart);
+window.addEventListener('keyup',keyStop);
+window.addEventListener('blur',()=>keys.clear());
+document.querySelectorAll('#controls button').forEach(button => {
+  const k=button.dataset.key;
+  button.addEventListener('pointerdown',e=>{e.preventDefault();keys.add(k);button.setPointerCapture?.(e.pointerId);});
+  for(const t of ['pointerup','pointercancel','lostpointercapture']) button.addEventListener(t,()=>keys.delete(k));
+});
+document.querySelector('#play').addEventListener('click',()=>{
+  startEl.classList.add('hidden');
+  playing=true;
+  resetMission();
 });
 requestAnimationFrame(tick);
 })();
